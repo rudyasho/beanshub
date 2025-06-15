@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Loader } from 'lucide-react';
 import { GreenBean } from '../../types';
+import { useAppContext } from '../../context/AppContext';
 
 interface AddBeanModalProps {
   onClose: () => void;
-  onAdd: (bean: GreenBean) => void;
 }
 
-export default function AddBeanModal({ onClose, onAdd }: AddBeanModalProps) {
+export default function AddBeanModal({ onClose }: AddBeanModalProps) {
+  const { services } = useAppContext();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     supplierName: '',
     variety: '',
@@ -17,22 +19,40 @@ export default function AddBeanModal({ onClose, onAdd }: AddBeanModalProps) {
     lowStockThreshold: '50'
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    const newBean: GreenBean = {
-      id: Date.now().toString(),
-      supplierName: formData.supplierName,
-      variety: formData.variety,
-      origin: formData.origin,
-      quantity: parseFloat(formData.quantity),
-      purchasePricePerKg: parseFloat(formData.purchasePricePerKg),
-      entryDate: new Date(),
-      batchNumber: `GB-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
-      lowStockThreshold: parseFloat(formData.lowStockThreshold)
-    };
+    try {
+      const newBean: Omit<GreenBean, 'id'> = {
+        supplierName: formData.supplierName,
+        variety: formData.variety,
+        origin: formData.origin,
+        quantity: parseFloat(formData.quantity),
+        purchasePricePerKg: parseFloat(formData.purchasePricePerKg),
+        entryDate: new Date(),
+        batchNumber: `GB-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
+        lowStockThreshold: parseFloat(formData.lowStockThreshold)
+      };
 
-    onAdd(newBean);
+      await services.greenBeans.create(newBean);
+      
+      // Add notification
+      await services.notifications.create({
+        type: 'success',
+        title: 'Biji Kopi Baru Ditambahkan',
+        message: `${newBean.variety} sebanyak ${newBean.quantity}kg berhasil ditambahkan`,
+        timestamp: new Date(),
+        read: false
+      });
+
+      onClose();
+    } catch (error) {
+      console.error('Error adding green bean:', error);
+      alert('Terjadi kesalahan saat menambahkan biji kopi');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,6 +70,7 @@ export default function AddBeanModal({ onClose, onAdd }: AddBeanModalProps) {
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
+            disabled={isLoading}
           >
             <X className="h-6 w-6" />
           </button>
@@ -67,6 +88,7 @@ export default function AddBeanModal({ onClose, onAdd }: AddBeanModalProps) {
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -82,6 +104,7 @@ export default function AddBeanModal({ onClose, onAdd }: AddBeanModalProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               placeholder="contoh: Arabica Gayo"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -97,6 +120,7 @@ export default function AddBeanModal({ onClose, onAdd }: AddBeanModalProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
               placeholder="contoh: Aceh, Indonesia"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -114,6 +138,7 @@ export default function AddBeanModal({ onClose, onAdd }: AddBeanModalProps) {
                 min="0"
                 step="0.1"
                 required
+                disabled={isLoading}
               />
             </div>
 
@@ -129,6 +154,7 @@ export default function AddBeanModal({ onClose, onAdd }: AddBeanModalProps) {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                 min="0"
                 required
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -146,6 +172,7 @@ export default function AddBeanModal({ onClose, onAdd }: AddBeanModalProps) {
               min="0"
               step="0.1"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -154,14 +181,23 @@ export default function AddBeanModal({ onClose, onAdd }: AddBeanModalProps) {
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={isLoading}
             >
               Batal
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+              className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center justify-center space-x-2"
+              disabled={isLoading}
             >
-              Tambah
+              {isLoading ? (
+                <>
+                  <Loader className="h-4 w-4 animate-spin" />
+                  <span>Menyimpan...</span>
+                </>
+              ) : (
+                <span>Tambah</span>
+              )}
             </button>
           </div>
         </form>

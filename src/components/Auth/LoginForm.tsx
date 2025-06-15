@@ -1,62 +1,74 @@
 import React, { useState } from 'react';
-import { Coffee, User, Lock } from 'lucide-react';
+import { Coffee, User, Lock, Loader } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
 export default function LoginForm() {
-  const { dispatch } = useAppContext();
+  const { dispatch, services, state } = useAppContext();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const mockUsers = [
-    {
-      id: '1',
-      email: 'admin@beanshub.com',
-      password: 'admin123',
-      name: 'Admin BeansHub',
-      role: 'Admin' as const,
-    },
-    {
-      id: '2',
-      email: 'roaster@beanshub.com',
-      password: 'roaster123',
-      name: 'Master Roaster',
-      role: 'Roaster' as const,
-    },
-    {
-      id: '3',
-      email: 'staff@beanshub.com',
-      password: 'staff123',
-      name: 'Staff Penjualan',
-      role: 'Staff' as const,
-    },
+  const mockCredentials = [
+    { email: 'admin@beanshub.com', password: 'admin123' },
+    { email: 'roaster@beanshub.com', password: 'roaster123' },
+    { email: 'staff@beanshub.com', password: 'staff123' }
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // Check mock credentials
+      const validCredential = mockCredentials.find(
+        cred => cred.email === email && cred.password === password
+      );
 
-    const user = mockUsers.find(
-      (u) => u.email === email && u.password === password
-    );
+      if (!validCredential) {
+        setError('Email atau password salah');
+        setIsLoading(false);
+        return;
+      }
 
-    if (user) {
-      dispatch({
-        type: 'SET_USER',
-        payload: {
-          ...user,
-          createdAt: new Date(),
-        },
-      });
-    } else {
-      alert('Email atau password salah');
+      // Find user in Firestore
+      const user = state.users.find(u => u.email === email);
+      
+      if (user) {
+        // Update last login
+        await services.users.update(user.id, {
+          lastLogin: new Date()
+        });
+
+        dispatch({
+          type: 'SET_USER',
+          payload: {
+            ...user,
+            lastLogin: new Date()
+          }
+        });
+      } else {
+        setError('User tidak ditemukan dalam sistem');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Terjadi kesalahan saat login');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
+
+  if (state.loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="h-12 w-12 animate-spin text-amber-600 mx-auto mb-4" />
+          <p className="text-gray-600">Memuat aplikasi...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center px-4">
@@ -109,23 +121,36 @@ export default function LoginForm() {
               </div>
             </div>
 
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-red-600 text-sm">{error}</p>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-amber-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-amber-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
             >
-              {isLoading ? 'Masuk...' : 'Masuk'}
+              {isLoading ? (
+                <>
+                  <Loader className="h-5 w-5 animate-spin" />
+                  <span>Masuk...</span>
+                </>
+              ) : (
+                <span>Masuk</span>
+              )}
             </button>
           </form>
 
-          {/* <div className="mt-6 sm:mt-8 p-4 bg-gray-50 rounded-lg">
+          <div className="mt-6 sm:mt-8 p-4 bg-gray-50 rounded-lg">
             <h3 className="font-medium text-gray-800 mb-2">Demo Akun:</h3>
             <div className="space-y-1 text-sm text-gray-600">
               <p><strong>Admin:</strong> admin@beanshub.com / admin123</p>
               <p><strong>Roaster:</strong> roaster@beanshub.com / roaster123</p>
               <p><strong>Staff:</strong> staff@beanshub.com / staff123</p>
             </div>
-          </div> */}
+          </div>
         </div>
       </div>
     </div>

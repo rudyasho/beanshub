@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Edit, Trash2, AlertTriangle, Package, ArrowUpDown, Eye, MoreVertical } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, AlertTriangle, Package, ArrowUpDown, Eye, MoreVertical, Loader } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { GreenBean } from '../../types';
 import AddBeanModal from './AddBeanModal';
@@ -8,8 +8,8 @@ import StockMovementModal from './StockMovementModal';
 import BeanDetailsModal from './BeanDetailsModal';
 
 export default function InventoryManagement() {
-  const { state, dispatch } = useAppContext();
-  const { greenBeans } = state;
+  const { state, services } = useAppContext();
+  const { greenBeans, loading } = state;
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showMovementModal, setShowMovementModal] = useState(false);
@@ -20,6 +20,7 @@ export default function InventoryManagement() {
   const [sortBy, setSortBy] = useState<'name' | 'quantity' | 'date'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const filteredBeans = greenBeans
     .filter(bean =>
@@ -50,9 +51,26 @@ export default function InventoryManagement() {
   const totalValue = greenBeans.reduce((sum, bean) => sum + (bean.quantity * bean.purchasePricePerKg), 0);
   const lowStockCount = greenBeans.filter(bean => bean.quantity <= bean.lowStockThreshold).length;
 
-  const handleDeleteBean = (id: string) => {
+  const handleDeleteBean = async (id: string) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus biji kopi ini?')) {
-      dispatch({ type: 'DELETE_GREEN_BEAN', payload: id });
+      setIsDeleting(id);
+      try {
+        await services.greenBeans.delete(id);
+        
+        // Add notification
+        await services.notifications.create({
+          type: 'info',
+          title: 'Biji Kopi Dihapus',
+          message: 'Biji kopi berhasil dihapus dari inventori',
+          timestamp: new Date(),
+          read: false
+        });
+      } catch (error) {
+        console.error('Error deleting green bean:', error);
+        alert('Terjadi kesalahan saat menghapus biji kopi');
+      } finally {
+        setIsDeleting(null);
+      }
     }
   };
 
@@ -145,6 +163,17 @@ export default function InventoryManagement() {
       </div>
     </div>
   );
+
+  if (loading) {
+    return (
+      <div className="p-4 lg:p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="h-12 w-12 animate-spin text-amber-600 mx-auto mb-4" />
+          <p className="text-gray-600">Memuat data inventori...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 lg:p-6 bg-gray-50 min-h-screen">
@@ -379,10 +408,15 @@ export default function InventoryManagement() {
                         </button>
                         <button 
                           onClick={() => handleDeleteBean(bean.id)}
-                          className="text-red-600 hover:text-red-900"
+                          className="text-red-600 hover:text-red-900 disabled:opacity-50"
                           title="Hapus"
+                          disabled={isDeleting === bean.id}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {isDeleting === bean.id ? (
+                            <Loader className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -407,10 +441,6 @@ export default function InventoryManagement() {
       {showAddModal && (
         <AddBeanModal 
           onClose={() => setShowAddModal(false)} 
-          onAdd={(bean) => {
-            dispatch({ type: 'ADD_GREEN_BEAN', payload: bean });
-            setShowAddModal(false);
-          }}
         />
       )}
 
@@ -418,11 +448,6 @@ export default function InventoryManagement() {
         <EditBeanModal
           bean={selectedBean}
           onClose={() => {
-            setShowEditModal(false);
-            setSelectedBean(null);
-          }}
-          onUpdate={(bean) => {
-            dispatch({ type: 'UPDATE_GREEN_BEAN', payload: bean });
             setShowEditModal(false);
             setSelectedBean(null);
           }}

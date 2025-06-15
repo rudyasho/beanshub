@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, Loader } from 'lucide-react';
 import { GreenBean } from '../../types';
+import { useAppContext } from '../../context/AppContext';
 
 interface EditBeanModalProps {
   bean: GreenBean;
   onClose: () => void;
-  onUpdate: (bean: GreenBean) => void;
 }
 
-export default function EditBeanModal({ bean, onClose, onUpdate }: EditBeanModalProps) {
+export default function EditBeanModal({ bean, onClose }: EditBeanModalProps) {
+  const { services } = useAppContext();
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     supplierName: bean.supplierName,
     variety: bean.variety,
@@ -51,24 +53,43 @@ export default function EditBeanModal({ bean, onClose, onUpdate }: EditBeanModal
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
 
-    const updatedBean: GreenBean = {
-      ...bean,
-      supplierName: formData.supplierName.trim(),
-      variety: formData.variety.trim(),
-      origin: formData.origin.trim(),
-      quantity: parseFloat(formData.quantity),
-      purchasePricePerKg: parseFloat(formData.purchasePricePerKg),
-      lowStockThreshold: parseFloat(formData.lowStockThreshold)
-    };
+    setIsLoading(true);
 
-    onUpdate(updatedBean);
+    try {
+      const updatedBean: Partial<GreenBean> = {
+        supplierName: formData.supplierName.trim(),
+        variety: formData.variety.trim(),
+        origin: formData.origin.trim(),
+        quantity: parseFloat(formData.quantity),
+        purchasePricePerKg: parseFloat(formData.purchasePricePerKg),
+        lowStockThreshold: parseFloat(formData.lowStockThreshold)
+      };
+
+      await services.greenBeans.update(bean.id, updatedBean);
+
+      // Add notification
+      await services.notifications.create({
+        type: 'info',
+        title: 'Biji Kopi Diperbarui',
+        message: `Data ${bean.variety} berhasil diperbarui`,
+        timestamp: new Date(),
+        read: false
+      });
+
+      onClose();
+    } catch (error) {
+      console.error('Error updating green bean:', error);
+      alert('Terjadi kesalahan saat memperbarui biji kopi');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,6 +110,7 @@ export default function EditBeanModal({ bean, onClose, onUpdate }: EditBeanModal
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
+            disabled={isLoading}
           >
             <X className="h-6 w-6" />
           </button>
@@ -107,6 +129,7 @@ export default function EditBeanModal({ bean, onClose, onUpdate }: EditBeanModal
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
                 errors.supplierName ? 'border-red-300' : 'border-gray-300'
               }`}
+              disabled={isLoading}
             />
             {errors.supplierName && <p className="text-red-500 text-sm mt-1">{errors.supplierName}</p>}
           </div>
@@ -124,6 +147,7 @@ export default function EditBeanModal({ bean, onClose, onUpdate }: EditBeanModal
                 errors.variety ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="contoh: Arabica Gayo"
+              disabled={isLoading}
             />
             {errors.variety && <p className="text-red-500 text-sm mt-1">{errors.variety}</p>}
           </div>
@@ -141,6 +165,7 @@ export default function EditBeanModal({ bean, onClose, onUpdate }: EditBeanModal
                 errors.origin ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="contoh: Aceh, Indonesia"
+              disabled={isLoading}
             />
             {errors.origin && <p className="text-red-500 text-sm mt-1">{errors.origin}</p>}
           </div>
@@ -160,6 +185,7 @@ export default function EditBeanModal({ bean, onClose, onUpdate }: EditBeanModal
                 }`}
                 min="0"
                 step="0.1"
+                disabled={isLoading}
               />
               {errors.quantity && <p className="text-red-500 text-sm mt-1">{errors.quantity}</p>}
             </div>
@@ -177,6 +203,7 @@ export default function EditBeanModal({ bean, onClose, onUpdate }: EditBeanModal
                   errors.purchasePricePerKg ? 'border-red-300' : 'border-gray-300'
                 }`}
                 min="0"
+                disabled={isLoading}
               />
               {errors.purchasePricePerKg && <p className="text-red-500 text-sm mt-1">{errors.purchasePricePerKg}</p>}
             </div>
@@ -196,6 +223,7 @@ export default function EditBeanModal({ bean, onClose, onUpdate }: EditBeanModal
               }`}
               min="0"
               step="0.1"
+              disabled={isLoading}
             />
             {errors.lowStockThreshold && <p className="text-red-500 text-sm mt-1">{errors.lowStockThreshold}</p>}
           </div>
@@ -214,15 +242,26 @@ export default function EditBeanModal({ bean, onClose, onUpdate }: EditBeanModal
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              disabled={isLoading}
             >
               Batal
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center space-x-2"
+              className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+              disabled={isLoading}
             >
-              <Save className="h-4 w-4" />
-              <span>Simpan Perubahan</span>
+              {isLoading ? (
+                <>
+                  <Loader className="h-4 w-4 animate-spin" />
+                  <span>Menyimpan...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  <span>Simpan Perubahan</span>
+                </>
+              )}
             </button>
           </div>
         </form>
