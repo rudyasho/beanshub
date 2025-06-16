@@ -66,7 +66,7 @@ export function useFirestoreData() {
 }
 
 // Individual hooks for specific collections
-export function useUsers() {
+function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -82,7 +82,7 @@ export function useUsers() {
   return { users, loading };
 }
 
-export function useGreenBeans() {
+function useGreenBeans() {
   const [greenBeans, setGreenBeans] = useState<GreenBean[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -98,7 +98,7 @@ export function useGreenBeans() {
   return { greenBeans, loading };
 }
 
-export function useRoastingProfiles() {
+function useRoastingProfiles() {
   const [roastingProfiles, setRoastingProfiles] = useState<RoastingProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -114,7 +114,7 @@ export function useRoastingProfiles() {
   return { roastingProfiles, loading };
 }
 
-export function useRoastingSessions() {
+function useRoastingSessions() {
   const [roastingSessions, setRoastingSessions] = useState<RoastingSession[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -130,7 +130,7 @@ export function useRoastingSessions() {
   return { roastingSessions, loading };
 }
 
-export function useSales() {
+function useSales() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -146,7 +146,7 @@ export function useSales() {
   return { sales, loading };
 }
 
-export function useNotifications() {
+function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
